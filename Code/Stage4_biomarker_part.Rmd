@@ -31,10 +31,12 @@ lgg_transcriptome <- GDCquery(project = "TCGA-LGG",
 GDCdownload(lgg_transcriptome, method = "api", files.per.chunk = 10)
 lgg.data <- GDCprepare(lgg_transcriptome)
 View(lgg.data)
+
 # Explore Some Metadata Information
 lgg.data$paper_IDH.status
 ```
 ```{r}
+
 # Creating Metadata
 simpleMeta <- data.frame("barcode"=lgg.data$barcode,
                          "IDH_status"=lgg.data$paper_IDH.status)
@@ -43,9 +45,11 @@ View(simpleMeta$IDH_status)
 ```{r}
 #select unstranded dataset
 lgg.raw.data <- assays(lgg.data) #help to extract information summarizing the experiment
+
 # For gene expression, to see a boxplot correlation and AAIC plot to define outliers
 lgg.data_Outliers <- TCGAanalyze_Preprocessing(lgg.data)
 dim(lgg.raw.data$unstranded)
+
 #extracting barcodes for IDH mutants and IDH wild types
 selectedBarcodes <- c(subset(simpleMeta, IDH_status == "Mutant")$barcode, subset(simpleMeta, IDH_status == "WT")$barcode)
 selectedData <- lgg.raw.data$unstranded[,c(selectedBarcodes)]
@@ -55,6 +59,7 @@ dim(selectedData)
 # Data normalization and filtering
 ```{r}
 normData <- TCGAanalyze_Normalization(tabDF = selectedData, geneInfo = geneInfoHT, method = "geneLength")
+
 # filtering
 filtData <- TCGAanalyze_Filtering(tabDF = normData,
                                   method = "quantile",
@@ -63,6 +68,7 @@ filtData <- TCGAanalyze_Filtering(tabDF = normData,
 
 # Annotate and save
 ```{r}
+
 # Annotate first 20 columns as 'irregular_smoker'
 colnames(filtData)[1:419] <- paste0("Mutant", 1:419)
 
@@ -85,13 +91,13 @@ selectResults <- TCGAanalyze_DEA(
   fdr.cut = 0.01,
   logFC.cut = 2
 )
+
 selectResults.level <- TCGAanalyze_LevelTab(selectResults,"IDH Mutant", "IDH WT",
                                             filtData[,grep("^Mutant", colnames(filtData))],
                                             filtData[,grep("^WT", colnames(filtData))])
+
 View(selectResults.level)
 ```
-
-
 ```{r}
 heat.data <- filtData[rownames(selectResults.level),]
 #color the plot by the type of smoking status
@@ -104,6 +110,7 @@ for (i in idh.status){
     color_codes <- c(color_codes, "blue")
   }
 }
+
 # Now plot the heatmap
 heatmap.2(x=as.matrix(heat.data),
           col=hcl.colors(10, palette = "Viridis"),
@@ -119,8 +126,6 @@ heatmap.2(x=as.matrix(heat.data),
           srtCol = 45,
           ColSideColors = color_codes)
 ```
-
-
 ```{r}
 #View the volcano plot first
 # Sample plot: x-axis (logFC), y-axis (-log10(FDR))
@@ -132,24 +137,23 @@ plot(x = selectResults.level$logFC,
      ylab = "-log10(FDR)",
      main = "Volcano Plot of Significant DEGs")  # Title of the plot
 ```
-
-
 ```{r}
 upreg.genes <- rownames(subset(selectResults.level, logFC > 2))
 downreg.genes <- rownames(subset(selectResults.level, logFC < -2))
 
 #convert ensembl IDs to gene IDs using biomart
 mart <- useMart(biomart = "ensembl", dataset = "hsapiens_gene_ensembl")
+
 upreg.genes <- getBM(attributes = c("ensembl_gene_id",'hgnc_symbol'),
                      filters = "ensembl_gene_id",
                      values = upreg.genes,
                      mart = mart)$hgnc_symbol
+
 downreg.genes <- getBM(attributes = c("ensembl_gene_id",'hgnc_symbol'),
                      filters = "ensembl_gene_id",
                      values = downreg.genes,
                      mart = mart)$hgnc_symbol
 ```
-
 
 ```{r}
 #enrichment analysis for both
@@ -165,6 +169,7 @@ TCGAvisualize_EAbarplot(tf = rownames(up.EA$ResBP),
                         text.size = 2,
                         fig.width = 30,
                         fig.height = 15)
+
 TCGAvisualize_EAbarplot(tf = rownames(down.EA$ResBP),
                         GOBPTab = down.EA$ResBP,
                         GOCCTab = down.EA$ResCC,
